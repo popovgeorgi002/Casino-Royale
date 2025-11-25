@@ -1,6 +1,7 @@
 {
   "name": "user-service",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -25,7 +26,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@prisma/client": "^7.0.0",
+    "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

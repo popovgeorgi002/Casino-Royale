@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { logger } from './config/logger';
-import userRoutes from './routes/user.routes';
+import { logger } from './config/logger.js';
+import userRoutes from './routes/user.routes.js';
 
 dotenv.config();
 

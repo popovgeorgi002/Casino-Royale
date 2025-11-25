@@ -1,6 +1,6 @@
-import { prisma } from '../config/database';
+import { prisma } from '../config/database.js';
 import bcrypt from 'bcryptjs';
-import { CreateUserDto, UpdateUserDto } from '../types';
+import type { CreateUserDto, UpdateUserDto } from '../types/index.js';
 
 export class UserService {
   async createUser(data: CreateUserDto) {
