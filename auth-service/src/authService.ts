@@ -4,6 +4,7 @@ import { createServiceError } from "./shared/utils.js";
 import bcrypt from "bcryptjs";
 import type { StringValue } from "ms";
 import jwt, { SignOptions } from "jsonwebtoken";
+import { GatewayService } from "./services/gateway.service.js";
 
 export class AuthService {
   private readonly jwtSecret: string;
@@ -11,6 +12,7 @@ export class AuthService {
   private readonly jwtExpiresIn: string;
   private readonly jwtRefreshExpiresIn: string;
   private readonly bcryptRounds: number;
+  private readonly gatewayService: GatewayService;
 
   constructor() {
     this.jwtSecret = process.env.JWT_SECRET!;
@@ -18,6 +20,7 @@ export class AuthService {
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || "15m";
     this.jwtRefreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
     this.bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS || "10", 10);
+    this.gatewayService = new GatewayService();
 
     if (!this.jwtSecret || !this.jwtRefreshSecret) {
       throw new Error("JWT secrets are not defined in environment variables");
@@ -44,6 +47,10 @@ export class AuthService {
         password: hashedPassword,
       },
     });
+
+    // Create user in user-service via API Gateway with same ID
+    // This ensures the ID in auth-database matches the ID in user-database
+    await this.gatewayService.createUserInUserService(user.id, 0);
 
     // generate tokens
     return this.generateTokens(user.id, user.email);

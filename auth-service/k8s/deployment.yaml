@@ -47,6 +47,8 @@ spec:
           value: "7d"
         - name: BCRYPT_ROUNDS
           value: "10"
+        - name: API_GATEWAY_URL
+          value: "http://api-gateway:3002"
         livenessProbe:
           httpGet:
             path: /health

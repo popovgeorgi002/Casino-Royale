@@ -4,7 +4,31 @@ import type { CreateUserDto, UpdateUserDto } from '../types/index.js';
 
 export class UserService {
   async createUser(data: CreateUserDto) {
-    // Check if user with email or username already exists
+    // If ID is provided (from gateway), check if user already exists
+    if (data.id) {
+      const existingUser = await prisma.user.findUnique({
+        where: { id: data.id },
+      });
+
+      if (existingUser) {
+        throw new Error('User with this ID already exists');
+      }
+
+      // Create user with provided ID and balance (called from gateway)
+      const user = await prisma.user.create({
+        data: {
+          id: data.id,
+          email: '', // Placeholder - not used when called from gateway
+          username: '', // Placeholder - not used when called from gateway
+          password: '', // Placeholder - not used when called from gateway
+          balance: data.balance ?? 0,
+        },
+      });
+
+      return { id: user.id, balance: user.balance };
+    }
+
+    // Original flow: Check if user with email or username already exists
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
@@ -33,6 +57,7 @@ export class UserService {
         password: hashedPassword,
         firstName: data.firstName ?? null,
         lastName: data.lastName ?? null,
+        balance: data.balance ?? 0,
       },
     });
 
