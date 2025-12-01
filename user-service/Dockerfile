@@ -4,12 +4,14 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 RUN npm ci
+RUN npx prisma generate
 COPY . .
 RUN npm run build
-RUN npx prisma generate
 
 # Production stage
 FROM node:20-alpine
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist

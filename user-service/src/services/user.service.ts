@@ -31,8 +31,8 @@ export class UserService {
         email: data.email,
         username: data.username,
         password: hashedPassword,
-        firstName: data.firstName,
-        lastName: data.lastName,
+        firstName: data.firstName ?? null,
+        lastName: data.lastName ?? null,
       },
     });
 
