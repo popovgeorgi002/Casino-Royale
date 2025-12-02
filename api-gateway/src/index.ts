@@ -40,6 +40,14 @@ app.use('/gateway', gatewayRoutes);
 // Proxy user-service routes through gateway
 app.use('/api', gatewayRoutes);
 
+// Debug: Log all requests
+app.use((req, res, next) => {
+  if (req.method === 'PUT' && req.path.includes('/users/')) {
+    console.log(`[GATEWAY] ${req.method} ${req.path} - Original URL: ${req.originalUrl}`);
+  }
+  next();
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`API Gateway running on port ${PORT}`);

@@ -73,31 +73,47 @@ export class GatewayController {
    */
   async proxyToUserService(req: Request, res: Response): Promise<void> {
     try {
-      const path = req.path.replace('/api/users', '/api/users');
-      const url = `${SERVICE_URLS.USER_SERVICE}${path}`;
+      // req.path will be '/users/:id' when mounted at '/gateway' or '/api'
+      // We need to construct the full path to user-service
+      const path = req.path; // This will be '/users/:id' or '/users'
+      const url = `${SERVICE_URLS.USER_SERVICE}/api${path}`;
+
+      // Use ClusterIP directly to avoid DNS issues
+      const serviceUrl = process.env.USER_SERVICE_URL || 'http://10.96.153.220:3000';
+      const finalUrl = `${serviceUrl}/api${path}`;
+      
+      console.log(`[GATEWAY] Proxying ${req.method} ${req.path} to ${finalUrl}`);
+      console.log(`[GATEWAY] Request body:`, JSON.stringify(req.body));
 
       const response = await axios({
         method: req.method as any,
-        url,
+        url: finalUrl,
         data: req.body,
         params: req.query,
         headers: {
-          ...req.headers,
-          host: undefined, // Remove host header
+          'Content-Type': 'application/json',
+          ...(req.headers.authorization && { Authorization: req.headers.authorization }),
         },
         timeout: 30000,
+        validateStatus: () => true,
       });
+
+      console.log(`[GATEWAY] Response status: ${response.status}`);
+      console.log(`[GATEWAY] Response data:`, JSON.stringify(response.data));
 
       res.status(response.status).json(response.data);
     } catch (error) {
+      console.error('[GATEWAY] Proxy error details:', error);
       if (axios.isAxiosError(error)) {
         const status = error.response?.status || 500;
         const data = error.response?.data || { error: error.message };
+        console.error(`[GATEWAY] Proxy error: ${status}`, data);
         res.status(status).json(data);
       } else {
+        console.error('[GATEWAY] Internal proxy error:', error);
         res.status(500).json({
           success: false,
-          error: 'Internal gateway error',
+          error: error instanceof Error ? error.message : 'Internal gateway error',
         });
       }
     }

@@ -27,7 +27,7 @@ spec:
         - name: NODE_ENV
           value: "production"
         - name: USER_SERVICE_URL
-          value: "http://user-service:3000"
+          value: "http://10.96.153.220:3000"
         - name: AUTH_SERVICE_URL
           value: "http://auth-service:3001"
         livenessProbe:

@@ -8,8 +8,12 @@ const gatewayController = new GatewayController();
 router.post('/users/create', (req, res) => gatewayController.createUser(req, res));
 
 // Proxy all user-service routes
+// IMPORTANT: Order matters - specific routes before generic ones
 router.get('/users/:id', (req, res) => gatewayController.getUserById(req, res));
-router.put('/users/:id', (req, res) => gatewayController.proxyToUserService(req, res));
+router.put('/users/:id', (req, res) => {
+  console.log('[ROUTE] PUT /users/:id matched, path:', req.path, 'params:', req.params);
+  gatewayController.proxyToUserService(req, res);
+});
 router.delete('/users/:id', (req, res) => gatewayController.proxyToUserService(req, res));
 router.post('/users', (req, res) => gatewayController.proxyToUserService(req, res));
 router.get('/users', (req, res) => gatewayController.proxyToUserService(req, res));

@@ -63,6 +63,10 @@ export interface UserResponse {
   error?: string;
 }
 
+export interface UpdateBalanceRequest {
+  balance: number;
+}
+
 export const userApi = {
   async getUserById(userId: string, token: string): Promise<UserResponse> {
     const response = await axios.get(`${GATEWAY_URL}/gateway/users/${userId}`, {
@@ -71,6 +75,29 @@ export const userApi = {
       },
     });
     return response.data;
+  },
+
+  async updateBalance(userId: string, balance: number, token: string): Promise<UserResponse> {
+    try {
+      console.log(`[API] Updating balance: userId=${userId}, balance=${balance}, url=${GATEWAY_URL}/gateway/users/${userId}`);
+      const response = await axios.put(
+        `${GATEWAY_URL}/gateway/users/${userId}`,
+        { balance },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      console.log('[API] Update balance response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('[API] Update balance error:', error);
+      console.error('[API] Error response:', error.response?.data);
+      console.error('[API] Error status:', error.response?.status);
+      throw error;
+    }
   },
 };
 
