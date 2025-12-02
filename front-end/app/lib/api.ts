@@ -34,11 +34,52 @@ export const authApi = {
   },
 };
 
+export interface DepositRequest {
+  userId: string;
+  amount: number; // Amount in cents
+  currency?: string;
+}
+
+export interface DepositResponse {
+  success: boolean;
+  data?: {
+    depositId: string;
+    userId: string;
+    amount: number;
+    currency: string;
+    status: string;
+    paymentIntentId?: string;
+    updatedBalance?: number;
+  };
+  error?: string;
+}
+
+export interface UserResponse {
+  success: boolean;
+  data?: {
+    id: string;
+    balance: number;
+  };
+  error?: string;
+}
+
 export const userApi = {
-  async getUserById(userId: string, token: string) {
-    const response = await axios.get(`${GATEWAY_URL}/api/users/${userId}`, {
+  async getUserById(userId: string, token: string): Promise<UserResponse> {
+    const response = await axios.get(`${GATEWAY_URL}/gateway/users/${userId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  },
+};
+
+export const depositApi = {
+  async createDeposit(data: DepositRequest, token: string): Promise<DepositResponse> {
+    const response = await axios.post(`${GATEWAY_URL}/api/deposits`, data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
     });
     return response.data;

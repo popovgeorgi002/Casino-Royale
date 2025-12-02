@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { userApi } from '@/app/lib/api'
+import { getUserIdFromToken } from '@/app/lib/jwt'
 
 export default function RoulettePage() {
   const router = useRouter()
@@ -17,9 +20,23 @@ export default function RoulettePage() {
       return
     }
 
-    // TODO: Fetch user balance from API
-    // For now, we'll just show the form
+    // Fetch user balance
+    const userId = getUserIdFromToken()
+    if (userId) {
+      fetchUserBalance(userId, token)
+    }
   }, [router])
+
+  const fetchUserBalance = async (userId: string, token: string) => {
+    try {
+      const response = await userApi.getUserById(userId, token)
+      if (response.success && response.data) {
+        setUserBalance(response.data.balance)
+      }
+    } catch (err) {
+      console.error('Failed to fetch balance:', err)
+    }
+  }
 
   const handleBet = () => {
     // TODO: Implement bet logic
@@ -45,12 +62,20 @@ export default function RoulettePage() {
       <div className="relative z-10 w-full max-w-6xl px-6 mb-8">
         <div className="flex justify-between items-center">
           <h1 className="text-5xl font-bold text-casino-gold">ROULETTE</h1>
-          <button
-            onClick={handleLogout}
-            className="px-6 py-2 bg-casino-red text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Logout
-          </button>
+          <div className="flex gap-4">
+            <Link
+              href="/profile"
+              className="px-6 py-2 bg-casino-gold/20 border border-casino-gold text-casino-gold font-medium rounded-lg hover:bg-casino-gold/30 transition-colors"
+            >
+              Profile
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="px-6 py-2 bg-casino-red text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
