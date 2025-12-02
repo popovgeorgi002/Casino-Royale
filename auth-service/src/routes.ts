@@ -5,7 +5,6 @@ import { loginSchema, registerSchema } from "./validation.js";
 
 const router = Router();
 
-//public routes
 router.post(
   "/register",
   validateRequest(registerSchema),

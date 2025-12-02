@@ -1,0 +1,5 @@
+403734|port-forward-user-service|3000
+403779|port-forward-auth-service|3001
+403832|port-forward-api-gateway|3002
+403868|port-forward-deposit-service|3004
+403921|front-end|3003

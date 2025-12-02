@@ -8,14 +8,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// setup middlewares
 app.use(express.json());
 
-// CORS configuration
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const corsOptions = {
   origin: isDevelopment
-    ? true // Allow all origins in development
+    ? true
     : [
         'http://localhost:3000',
         'http://localhost:3003',
@@ -29,7 +27,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", service: "auth-service" });
 });

@@ -10,17 +10,10 @@ export class GatewayController {
     this.userService = new UserService();
   }
 
-  /**
-   * Create user in user-service
-   * Called by auth-service after user registration
-   * POST /gateway/users/create
-   * Body: { id: string, balance?: number }
-   */
   async createUser(req: Request, res: Response): Promise<void> {
     try {
       const { id, balance } = req.body;
 
-      // Validate required fields
       if (!id) {
         res.status(400).json({
           success: false,
@@ -29,7 +22,6 @@ export class GatewayController {
         return;
       }
 
-      // Create user in user-service with same ID and balance
       const result = await this.userService.createUser({
         id,
         balance: balance ?? 0,
@@ -49,10 +41,6 @@ export class GatewayController {
     }
   }
 
-  /**
-   * Proxy GET requests to user-service
-   * GET /api/users/:id
-   */
   async getUserById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -68,17 +56,11 @@ export class GatewayController {
     }
   }
 
-  /**
-   * Proxy all other user-service routes
-   */
   async proxyToUserService(req: Request, res: Response): Promise<void> {
     try {
-      // req.path will be '/users/:id' when mounted at '/gateway' or '/api'
-      // We need to construct the full path to user-service
-      const path = req.path; // This will be '/users/:id' or '/users'
+      const path = req.path;
       const url = `${SERVICE_URLS.USER_SERVICE}/api${path}`;
 
-      // Use ClusterIP directly to avoid DNS issues
       const serviceUrl = process.env.USER_SERVICE_URL || 'http://10.96.153.220:3000';
       const finalUrl = `${serviceUrl}/api${path}`;
       
@@ -119,13 +101,8 @@ export class GatewayController {
     }
   }
 
-  /**
-   * Proxy requests to deposit-service
-   */
   async proxyToDepositService(req: Request, res: Response): Promise<void> {
     try {
-      // req.path will be '/deposits' or '/deposits/:id' when mounted at '/api'
-      // We need to forward to '/api/deposits' on the deposit service
       const path = req.path.startsWith('/deposits') 
         ? req.path.replace('/deposits', '/api/deposits')
         : `/api${req.path}`;
@@ -138,7 +115,7 @@ export class GatewayController {
         params: req.query,
         headers: {
           ...req.headers,
-          host: undefined, // Remove host header
+          host: undefined,
         },
         timeout: 30000,
       });

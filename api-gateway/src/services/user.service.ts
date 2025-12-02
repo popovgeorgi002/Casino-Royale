@@ -13,12 +13,6 @@ export class UserService {
     this.userServiceUrl = SERVICE_URLS.USER_SERVICE;
   }
 
-  /**
-   * Create a user in the user-service
-   * This method is called by auth-service after user registration
-   * @param userData User data with ID from auth-service and balance
-   * @returns Created user
-   */
   async createUser(userData: CreateUserRequest) {
     try {
       const response = await axios.post(
@@ -31,7 +25,7 @@ export class UserService {
           headers: {
             'Content-Type': 'application/json',
           },
-          timeout: 10000, // 10 second timeout
+          timeout: 10000,
         }
       );
 
@@ -46,9 +40,6 @@ export class UserService {
     }
   }
 
-  /**
-   * Get user by ID from user-service
-   */
   async getUserById(userId: string) {
     try {
       const response = await axios.get(
