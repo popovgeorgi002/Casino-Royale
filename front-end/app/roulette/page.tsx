@@ -21,14 +21,12 @@ export default function RoulettePage() {
   const [wheelRotation, setWheelRotation] = useState(0)
 
   useEffect(() => {
-    // Check if user is logged in
     const token = localStorage.getItem('accessToken')
     if (!token) {
       router.push('/login')
       return
     }
 
-    // Fetch user balance
     const userId = getUserIdFromToken()
     if (userId) {
       fetchUserBalance(userId, token)
@@ -75,45 +73,33 @@ export default function RoulettePage() {
       return
     }
 
-    // Start spinning animation
     setGameState('spinning')
     setSpinning(true)
     
-    // Random rotation for visual effect (multiple full spins + random angle)
-    const baseRotation = 360 * 5 // 5 full spins
+    const baseRotation = 360 * 5
     const randomAngle = Math.random() * 360
     const totalRotation = baseRotation + randomAngle
     setWheelRotation(prev => prev + totalRotation)
 
-    // Simulate game result after 3 seconds (50/50 chance)
     setTimeout(async () => {
-      const isWin = Math.random() >= 0.5 // 50% chance to win
+      const isWin = Math.random() >= 0.5
       const result: GameResult = isWin ? 'win' : 'lose'
       setGameResult(result)
       setSpinning(false)
       setGameState('result')
 
-      // Get current balance (in case it changed)
       const currentBalance = userBalance || 0
 
-      // Calculate new balance
-      // When you place a bet, it's deducted from your balance
-      // If you win, you get 2x your bet back
       let newBalance: number
       if (isWin) {
-        // Win: get 2x bet back
-        // Formula: (currentBalance - bet) + (bet * 2) = currentBalance + bet
-        // This gives you a net gain of 1x bet, meaning you receive 2x your bet total
         const winnings = bet * 2
         newBalance = currentBalance - bet + winnings
         setWinAmount(winnings)
       } else {
-        // Lose: lose the bet
         newBalance = currentBalance - bet
         setWinAmount(0)
       }
 
-      // Update balance in backend
       console.log(`[ROULETTE] Game result: ${result}`)
       console.log(`[ROULETTE] Bet: $${bet}, Current balance: $${currentBalance}, New balance: $${newBalance}`)
       console.log(`[ROULETTE] Calling updateBalance for user ${userId}`)
@@ -135,12 +121,10 @@ export default function RoulettePage() {
       console.log('Balance update response:', response)
       
       if (response.success && response.data) {
-        // Update local state with the response
         const updatedBalance = response.data.balance
         setUserBalance(updatedBalance)
         console.log(`Balance updated successfully to ${updatedBalance}`)
         
-        // Double-check by fetching from server after a short delay to ensure consistency
         setTimeout(async () => {
           try {
             const verifiedBalance = await fetchUserBalance(userId, token)
@@ -157,7 +141,6 @@ export default function RoulettePage() {
         setError(errorMsg)
         console.error('Balance update failed:', errorMsg)
         
-        // Refresh balance to get current state from server
         await fetchUserBalance(userId, token)
       }
     } catch (err: any) {
@@ -165,7 +148,6 @@ export default function RoulettePage() {
       const errorMessage = err.response?.data?.error || err.message || 'Failed to update balance'
       setError(errorMessage)
       
-      // Refresh balance to get current state from server
       try {
         await fetchUserBalance(userId, token)
       } catch (refreshErr) {
@@ -189,7 +171,6 @@ export default function RoulettePage() {
     router.push('/')
   }
 
-  // Calculate wheel color based on rotation (for visual effect)
   const getWheelColor = () => {
     if (spinning) return 'from-casino-gold via-yellow-400 to-casino-gold'
     if (gameResult === 'win') return 'from-green-500 via-casino-green to-green-500'
@@ -199,14 +180,12 @@ export default function RoulettePage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-casino-dark via-gray-900 to-casino-dark"></div>
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-casino-gold rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-casino-red rounded-full blur-3xl"></div>
       </div>
 
-      {/* Header */}
       <div className="relative z-10 w-full max-w-6xl px-6 mb-8">
         <div className="flex justify-between items-center">
           <h1 className="text-5xl font-bold text-casino-gold">ROULETTE</h1>
@@ -227,10 +206,8 @@ export default function RoulettePage() {
         </div>
       </div>
 
-      {/* Main Game Area */}
       <div className="relative z-10 w-full max-w-6xl px-6">
         <div className="bg-gray-900/90 backdrop-blur-lg border border-casino-gold/30 rounded-2xl shadow-2xl p-8">
-          {/* Balance Display */}
           {userBalance !== null && (
             <div className="mb-6 text-center">
               <p className="text-gray-400 mb-2">Your Balance</p>
@@ -238,7 +215,6 @@ export default function RoulettePage() {
             </div>
           )}
 
-          {/* Roulette Wheel */}
           <div className="mb-8 flex flex-col items-center">
             <div className="relative">
               <div
@@ -250,7 +226,6 @@ export default function RoulettePage() {
                   transition: spinning ? 'none' : 'transform 0.5s ease-out',
                 }}
               >
-                {/* Wheel segments - alternating colors */}
                 <div className="absolute inset-0">
                   {Array.from({ length: 18 }).map((_, i) => (
                     <div
@@ -273,7 +248,6 @@ export default function RoulettePage() {
                   ))}
                 </div>
                 
-                {/* Center circle */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-32 h-32 rounded-full bg-casino-gold border-4 border-casino-dark flex items-center justify-center">
                     <div className="text-4xl font-bold text-casino-dark">
@@ -282,12 +256,10 @@ export default function RoulettePage() {
                   </div>
                 </div>
                 
-                {/* Spinning indicator */}
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-4 h-8 bg-casino-gold rounded-t-full z-10 shadow-lg"></div>
               </div>
             </div>
 
-            {/* Game Result Display */}
             {gameResult && (
               <div className={`mt-6 p-6 rounded-lg border-2 ${
                 gameResult === 'win' 
@@ -313,14 +285,12 @@ export default function RoulettePage() {
             )}
           </div>
 
-          {/* Error message */}
           {error && (
             <div className="mb-6 p-4 bg-casino-red/20 border border-casino-red rounded-lg text-red-300 text-sm text-center">
               {error}
             </div>
           )}
 
-          {/* Bet Input Section */}
           {gameState === 'idle' && (
             <div className="max-w-md mx-auto space-y-6">
               <div>
@@ -355,7 +325,6 @@ export default function RoulettePage() {
             </div>
           )}
 
-          {/* Spinning State */}
           {gameState === 'spinning' && (
             <div className="text-center">
               <p className="text-2xl font-bold text-casino-gold animate-pulse">SPINNING...</p>
@@ -363,7 +332,6 @@ export default function RoulettePage() {
             </div>
           )}
 
-          {/* Result State - New Game Button */}
           {gameState === 'result' && (
             <div className="text-center">
               <button
@@ -375,7 +343,6 @@ export default function RoulettePage() {
             </div>
           )}
 
-          {/* Game Info */}
           <div className="mt-8 text-center text-gray-400 text-sm">
             <p>50% chance to win 2x your bet</p>
             <p className="mt-1">Place your bet and spin the wheel!</p>
