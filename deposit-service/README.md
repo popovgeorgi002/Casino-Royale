@@ -1,95 +1,250 @@
 # Deposit Service
 
-Microservice for handling deposits using Stripe API (test mode with virtual money).
+Payment processing service that handles deposits using Stripe integration.
 
-## Features
+## Overview
 
-- Stripe Payment Intent integration (test mode)
-- Automatic user balance updates in user-service
-- Deposit status tracking
-- Health check endpoint
+The Deposit Service provides:
+- Stripe PaymentIntent creation
+- Payment status tracking
+- Integration with User Service for balance updates
+- Secure payment processing using Stripe API
+
+## Port
+
+- **Default**: 3004
+- **Configurable**: Set `PORT` environment variable
 
 ## Environment Variables
 
-```env
-PORT=3004
-NODE_ENV=development
-STRIPE_SECRET_KEY=sk_test_your_stripe_test_secret_key
-STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_test_publishable_key
-USER_SERVICE_URL=http://user-service:3000
-API_GATEWAY_URL=http://api-gateway:3002
+```bash
+PORT=3004                                    # Server port
+NODE_ENV=development                         # Environment (development/production)
+STRIPE_SECRET_KEY=sk_test_...                # Stripe secret key
+STRIPE_PUBLISHABLE_KEY=pk_test_...           # Stripe publishable key
+USER_SERVICE_URL=http://user-service:3000    # User service URL
+API_GATEWAY_URL=http://api-gateway:3002     # API Gateway URL (optional)
 ```
 
-## API Endpoints
-
-### Create Deposit
-```
-POST /api/deposits
-Content-Type: application/json
-
-{
-  "userId": "user-id-here",
-  "amount": 1000,  // Amount in cents (1000 = $10.00)
-  "currency": "usd"  // Optional, defaults to "usd"
-}
-```
-
-### Get Deposit Status
-```
-GET /api/deposits/:paymentIntentId
-```
-
-### Health Check
-```
-GET /health
-```
-
-## Stripe Test Mode
-
-This service uses Stripe's test mode, which allows you to:
-- Use test API keys (start with `sk_test_` and `pk_test_`)
-- Process payments without real money
-- Use test card numbers for testing
-
-### Test Card Numbers
-- Success: `4242 4242 4242 4242`
-- Decline: `4000 0000 0000 0002`
-- Requires authentication: `4000 0025 0000 3155`
-
-## Flow
-
-1. Client sends deposit request to API Gateway
-2. API Gateway forwards to Deposit Service
-3. Deposit Service creates Stripe PaymentIntent
-4. PaymentIntent is confirmed (auto-confirmed in test mode)
-5. User balance is updated in user-service
-6. Response returned with deposit details
-
-## Building and Deploying
+## Installation
 
 ```bash
-# Build Docker image
-docker build -t deposit-service:latest .
-
-# Load into Kubernetes (if using kind)
-kind load docker-image deposit-service:latest --name microservices
-
-# Apply Kubernetes resources
-kubectl apply -f k8s/
+npm install
 ```
 
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Run in development mode
 npm run dev
+```
 
-# Build
+Starts the server with hot-reload using `tsx watch`.
+
+## Build
+
+```bash
 npm run build
+```
 
-# Start production
+Compiles TypeScript to JavaScript in the `dist/` directory.
+
+## Production
+
+```bash
 npm start
 ```
+
+Runs the compiled JavaScript from `dist/`.
+
+## API Endpoints
+
+### Health Check
+- `GET /health` - Service health status
+
+### Deposit Operations
+- `POST /api/deposits` - Create a deposit payment intent
+  ```json
+  {
+    "amount": 10000,        // Amount in cents (e.g., 10000 = $100.00)
+    "currency": "usd",      // Currency code
+    "userId": "user-uuid"   // User ID
+  }
+  ```
+  
+  Response:
+  ```json
+  {
+    "paymentIntentId": "pi_...",
+    "clientSecret": "pi_..._secret_...",
+    "amount": 10000,
+    "currency": "usd",
+    "status": "requires_payment_method"
+  }
+  ```
+
+- `GET /api/deposits/:paymentIntentId` - Get deposit status
+  ```json
+  {
+    "paymentIntentId": "pi_...",
+    "status": "succeeded",
+    "amount": 10000,
+    "currency": "usd",
+    "metadata": {
+      "userId": "user-uuid"
+    }
+  }
+  ```
+
+## Architecture
+
+```
+deposit-service/
+├── src/
+│   ├── config/
+│   │   └── logger.ts           # Winston logger configuration
+│   ├── controllers/
+│   │   └── deposit.controller.ts  # Request handlers
+│   ├── routes/
+│   │   └── deposit.routes.ts    # Route definitions
+│   ├── services/
+│   │   ├── deposit.service.ts  # Business logic
+│   │   ├── stripe.service.ts   # Stripe API integration
+│   │   └── user.service.ts     # User service client
+│   ├── types/
+│   │   └── index.ts            # TypeScript types
+│   └── index.ts                # Application entry point
+├── k8s/                        # Kubernetes deployment files
+└── Dockerfile                  # Docker image definition
+```
+
+## Stripe Integration
+
+The service uses Stripe's PaymentIntent API for payment processing:
+
+1. **Create PaymentIntent**: Creates a payment intent with the specified amount
+2. **Confirm Payment**: Frontend uses Stripe.js to confirm payment with client secret
+3. **Status Check**: Service can retrieve payment status at any time
+
+### Test Mode
+
+The service is configured for Stripe test mode. Use test card numbers:
+- Success: `4242 4242 4242 4242`
+- Decline: `4000 0000 0000 0002`
+
+## Payment Flow
+
+1. Client requests deposit creation via API Gateway
+2. Service creates Stripe PaymentIntent
+3. Returns client secret to frontend
+4. Frontend uses Stripe.js to complete payment
+5. Stripe webhook (optional) or polling confirms payment
+6. Service updates user balance in User Service
+
+## Logging
+
+The service uses Winston for structured logging:
+
+- **Info**: General operations and successful payments
+- **Error**: Payment failures and service errors
+- **Warn**: Warnings and retries
+
+Logs are output to console and can be configured for file output.
+
+## Service Communication
+
+### User Service Integration
+
+The deposit service communicates with the user service to:
+- Verify user existence
+- Update user balance after successful payment
+
+## Kubernetes Deployment
+
+The service includes Kubernetes deployment files in `k8s/`:
+
+- `deployment.yaml` - Deployment configuration
+- `service.yaml` - Service definition
+- `secret.yaml` - Stripe API keys
+
+To deploy:
+
+```bash
+kubectl apply -f k8s/
+```
+
+**Important**: Update `k8s/secret.yaml` with your Stripe API keys before deploying.
+
+## Docker
+
+Build the Docker image:
+
+```bash
+docker build -t deposit-service:latest .
+```
+
+## Dependencies
+
+- **express** - Web framework
+- **stripe** - Stripe SDK for payment processing
+- **axios** - HTTP client for service communication
+- **winston** - Logging library
+- **cors** - CORS middleware
+- **dotenv** - Environment variable management
+- **typescript** - TypeScript support
+- **tsx** - TypeScript execution for development
+
+## Error Handling
+
+The service returns appropriate HTTP status codes:
+- `200` - Success
+- `201` - Created
+- `400` - Bad Request (invalid amount, missing fields)
+- `404` - Not Found (payment intent not found)
+- `500` - Internal Server Error (Stripe API errors, service errors)
+
+## Health Check
+
+The `/health` endpoint returns:
+```json
+{
+  "status": "ok",
+  "service": "deposit-service"
+}
+```
+
+Use this endpoint for Kubernetes liveness and readiness probes.
+
+## Testing
+
+Example deposit creation:
+
+```bash
+curl -X POST http://localhost:3004/api/deposits \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 10000,
+    "currency": "usd",
+    "userId": "user-uuid-here"
+  }'
+```
+
+Example status check:
+
+```bash
+curl http://localhost:3004/api/deposits/pi_xxxxx
+```
+
+## Stripe Setup
+
+1. Create a Stripe account at https://stripe.com
+2. Get your API keys from the Stripe Dashboard
+3. Use test keys for development (start with `sk_test_` and `pk_test_`)
+4. Set environment variables or update Kubernetes secrets
+
+## Security Considerations
+
+- Never expose Stripe secret keys in client-side code
+- Use HTTPS in production
+- Validate amounts server-side
+- Implement rate limiting for deposit endpoints
+- Monitor for suspicious payment patterns

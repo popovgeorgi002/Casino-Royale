@@ -1,225 +1,260 @@
-# Microservices Casino Platform
+# Microservices Platform
 
-A full-stack microservices application with a casino frontend.
+A modern microservices-based platform built with Node.js, TypeScript, and Kubernetes. This project demonstrates a scalable architecture with separate services for authentication, user management, and payment processing.
 
-## Architecture
+## Video Demo
 
-- **User Service** (Port 3000) - User management service
-- **Auth Service** (Port 3001) - Authentication and authorization
-- **API Gateway** (Port 3002) - Gateway for routing requests
-- **Front-end** (Port 3000/3003) - Next.js casino application
+Watch the platform in action:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/QorTxd_Hlfk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+[Watch on YouTube](https://youtu.be/QorTxd_Hlfk)
+
+## Architecture Overview
+
+The platform consists of the following services:
+
+- **API Gateway** (Port 3002) - Central entry point that routes requests to appropriate services
+- **Auth Service** (Port 3001) - Handles user authentication and JWT token management
+- **User Service** (Port 3000) - Manages user profiles and balances
+- **Deposit Service** (Port 3004) - Processes payments via Stripe integration
+- **Front-end** (Port 3003) - Next.js web application
+
+## Technology Stack
+
+- **Backend**: Node.js, Express, TypeScript
+- **Database**: PostgreSQL (with Prisma ORM)
+- **Authentication**: JWT (JSON Web Tokens)
+- **Payment Processing**: Stripe API
+- **Frontend**: Next.js 14, React, Tailwind CSS
+- **Containerization**: Docker
+- **Orchestration**: Kubernetes
+- **Development**: tsx, TypeScript
+
+## Prerequisites
+
+- Node.js 20+ and npm
+- Docker and Docker Compose
+- Kubernetes cluster (kind, minikube, or cloud-based)
+- kubectl configured
+- PostgreSQL database (or use provided docker-compose setup)
+- Stripe account (for deposit service)
 
 ## Quick Start
 
-### Start All Services
+### 1. Start All Services
 
-Use the provided startup script:
+The easiest way to start all services is using the provided script:
 
 ```bash
 ./start-all.sh
 ```
 
-Or with specific commands:
+This script will:
+- Check for required dependencies (npm, kubectl)
+- Verify Kubernetes cluster connectivity
+- Start backend services in Kubernetes (via port-forwards)
+- Start the front-end locally
+- Display service URLs and health status
 
+### 2. Manual Setup
+
+#### Backend Services (Kubernetes)
+
+1. **Build Docker images:**
 ```bash
-# Start all services
-./start-all.sh start
-
-# Stop all services
-./start-all.sh stop
-
-# Check status
-./start-all.sh status
-
-# View logs
-./start-all.sh logs <service-name>
-
-# Restart all services
-./start-all.sh restart
+docker build -t user-service:latest ./user-service
+docker build -t auth-service:latest ./auth-service
+docker build -t api-gateway:latest ./api-gateway
+docker build -t deposit-service:latest ./deposit-service
 ```
 
-### Manual Start
-
-If you prefer to start services manually:
-
-#### 1. User Service
+2. **Load images to Kubernetes (if using kind):**
 ```bash
-cd user-service
-npm install
-npm run dev
+kind load docker-image user-service:latest --name microservices
+kind load docker-image auth-service:latest --name microservices
+kind load docker-image api-gateway:latest --name microservices
+kind load docker-image deposit-service:latest --name microservices
 ```
 
-#### 2. Auth Service
+3. **Apply Kubernetes resources:**
 ```bash
-cd auth-service
-npm install
-npm run dev
+kubectl apply -f user-service/k8s/
+kubectl apply -f auth-service/k8s/
+kubectl apply -f api-gateway/k8s/
+kubectl apply -f deposit-service/k8s/
 ```
 
-#### 3. API Gateway
-```bash
-cd api-gateway
-npm install
-npm run dev
-```
+#### Front-end
 
-#### 4. Front-end
 ```bash
 cd front-end
 npm install
 npm run dev
 ```
 
-## Environment Variables
-
-### User Service
-Create `user-service/.env`:
-```
-PORT=3000
-NODE_ENV=development
-DATABASE_URL=postgresql://user:password@localhost:5432/userdb
-JWT_SECRET=your-secret-key
-```
-
-### Auth Service
-Create `auth-service/.env`:
-```
-PORT=3001
-NODE_ENV=development
-DATABASE_URL=postgresql://user:password@localhost:5432/authdb
-JWT_SECRET=your-secret-key
-JWT_REFRESH_SECRET=your-refresh-secret-key
-API_GATEWAY_URL=http://localhost:3002
-```
+## Service Details
 
 ### API Gateway
-Create `api-gateway/.env`:
-```
-PORT=3002
-NODE_ENV=development
-USER_SERVICE_URL=http://localhost:3000
-AUTH_SERVICE_URL=http://localhost:3001
-```
+- **Port**: 3002
+- **Health Check**: `http://localhost:3002/health`
+- Routes requests to appropriate microservices
+- Handles CORS and request proxying
+
+### Auth Service
+- **Port**: 3001
+- **Health Check**: `http://localhost:3001/health`
+- **Endpoints**:
+  - `POST /auth/register` - User registration
+  - `POST /auth/login` - User login
+- Uses PostgreSQL for user storage
+- Implements JWT access and refresh tokens
+
+### User Service
+- **Port**: 3000
+- **Health Check**: `http://localhost:3000/health`
+- **Endpoints**:
+  - `GET /api/users/:id` - Get user by ID
+  - `POST /api/users` - Create user
+  - `PUT /api/users/:id` - Update user
+  - `DELETE /api/users/:id` - Delete user
+- Manages user balances and profiles
+
+### Deposit Service
+- **Port**: 3004
+- **Health Check**: `http://localhost:3004/health`
+- **Endpoints**:
+  - `POST /api/deposits` - Create deposit payment intent
+  - `GET /api/deposits/:paymentIntentId` - Get deposit status
+- Integrates with Stripe for payment processing
 
 ### Front-end
-Create `front-end/.env.local`:
+- **Port**: 3003 (default)
+- **URL**: `http://localhost:3003`
+- Next.js application with pages for:
+  - Login/Registration
+  - User Profile
+  - Roulette game
+  - Deposit functionality
+
+## Environment Variables
+
+Each service requires specific environment variables. See individual service README files for details:
+
+- [API Gateway README](./api-gateway/README.md)
+- [Auth Service README](./auth-service/README.md)
+- [User Service README](./user-service/README.md)
+- [Deposit Service README](./deposit-service/README.md)
+- [Front-end README](./front-end/README.md)
+
+## Development
+
+### Running Services Locally
+
+Each service can be run independently:
+
+```bash
+# Install dependencies
+cd <service-directory>
+npm install
+
+# Run in development mode
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production build
+npm start
 ```
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_GATEWAY_URL=http://localhost:3002
-```
 
-## Service URLs
+### Database Setup
 
-- **User Service**: http://localhost:3000
-- **Auth Service**: http://localhost:3001
-- **API Gateway**: http://localhost:3002
-- **Front-end**: http://localhost:3000 (or 3003 if 3000 is in use)
-
-## Database Setup
-
-### User Service Database
+#### User Service Database
 ```bash
 cd user-service
 npm run prisma:generate
 npm run prisma:migrate
 ```
 
-### Auth Service Database
+#### Auth Service Database
 ```bash
 cd auth-service
 npm run prisma:generate
 npm run prisma:migrate
 ```
 
-## Kubernetes Deployment
+## Scripts
 
-To deploy to Kubernetes (kind):
+### start-all.sh
+
+The main startup script supports several commands:
 
 ```bash
-# Build and load images
-docker build -t user-service:latest ./user-service
-docker build -t auth-service:latest ./auth-service
-docker build -t api-gateway:latest ./api-gateway
-
-kind load docker-image user-service:latest --name microservices
-kind load docker-image auth-service:latest --name microservices
-kind load docker-image api-gateway:latest --name microservices
-
-# Apply Kubernetes configs
-kubectl apply -f user-service/k8s/
-kubectl apply -f auth-service/k8s/
-kubectl apply -f api-gateway/k8s/
+./start-all.sh start    # Start all services (default)
+./start-all.sh stop     # Stop all local services and port-forwards
+./start-all.sh status   # Show status of all services
+./start-all.sh logs <service-name>  # View logs for a service
+./start-all.sh restart  # Stop and restart all services
 ```
 
 ## Project Structure
 
 ```
 microservices1/
-├── user-service/      # User management service
-├── auth-service/      # Authentication service
-├── api-gateway/       # API Gateway
-├── front-end/         # Next.js frontend
-├── start-all.sh       # Startup script
-└── README.md          # This file
+├── api-gateway/          # API Gateway service
+├── auth-service/         # Authentication service
+├── deposit-service/      # Payment processing service
+├── user-service/         # User management service
+├── front-end/            # Next.js frontend application
+├── shared/               # Shared utilities and middleware
+└── start-all.sh          # Main startup script
 ```
 
-## Development
+## API Documentation
 
-### Prerequisites
-- Node.js 20+ and npm
-- PostgreSQL (for databases)
-- Docker (optional, for Kubernetes)
+### Authentication Flow
 
-### Installing Node.js and npm
+1. **Register**: `POST /api/users/create` (via gateway) or `POST /auth/register`
+2. **Login**: `POST /auth/login` - Returns JWT access token and refresh token
+3. **Use Token**: Include `Authorization: Bearer <token>` header in subsequent requests
 
-If you don't have Node.js installed, you can use the helper script:
+### User Management
 
-```bash
-./install-node.sh
-```
+- All user operations go through the API Gateway at `/api/users/*`
+- The gateway proxies requests to the User Service
 
-Or install manually:
+### Deposit Flow
 
-**Using nvm (recommended):**
-```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-source ~/.bashrc
-nvm install 20
-nvm use 20
-```
-
-**Using package manager:**
-- Ubuntu/Debian: `sudo apt-get install nodejs npm`
-- Fedora: `sudo dnf install nodejs npm`
-- Arch: `sudo pacman -S nodejs npm`
-
-**Note:** If you're using nvm, make sure to load it before running the startup script:
-```bash
-source ~/.nvm/nvm.sh
-./start-all.sh
-```
-
-### Logs
-
-Service logs are stored in the `logs/` directory:
-- `logs/user-service.log`
-- `logs/auth-service.log`
-- `logs/api-gateway.log`
-- `logs/front-end.log`
+1. Create deposit: `POST /api/deposits` with amount and user ID
+2. Returns Stripe PaymentIntent with client secret
+3. Frontend uses Stripe.js to complete payment
+4. Check status: `GET /api/deposits/:paymentIntentId`
 
 ## Troubleshooting
 
-### Port Already in Use
-If a port is already in use, the script will warn you. You can:
-1. Stop the service using that port
-2. Change the port in the service's configuration
-3. Use `./start-all.sh stop` to stop all services
-
 ### Services Not Starting
-1. Check if dependencies are installed: `npm install` in each service directory
-2. Check if databases are running and accessible
-3. Verify environment variables are set correctly
-4. Check logs: `./start-all.sh logs <service-name>`
+
+1. Check Kubernetes cluster: `kubectl cluster-info`
+2. Verify namespace exists: `kubectl get namespace microservices`
+3. Check service logs: `kubectl logs -n microservices deployment/<service-name>`
+
+### Port Conflicts
+
+If ports are already in use, the `start-all.sh` script will attempt to find alternative ports for the front-end.
+
+### Database Connection Issues
+
+- Verify database is running
+- Check `DATABASE_URL` environment variable
+- Ensure database migrations have been run
+
+## Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Test thoroughly
+4. Submit a pull request
 
 ## License
 
