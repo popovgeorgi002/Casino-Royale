@@ -108,7 +108,11 @@ export class GatewayController {
    */
   async proxyToDepositService(req: Request, res: Response): Promise<void> {
     try {
-      const path = req.path.replace('/api/deposits', '/api/deposits');
+      // req.path will be '/deposits' or '/deposits/:id' when mounted at '/api'
+      // We need to forward to '/api/deposits' on the deposit service
+      const path = req.path.startsWith('/deposits') 
+        ? req.path.replace('/deposits', '/api/deposits')
+        : `/api${req.path}`;
       const url = `${SERVICE_URLS.DEPOSIT_SERVICE}${path}`;
 
       const response = await axios({
