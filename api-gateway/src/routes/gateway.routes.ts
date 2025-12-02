@@ -14,4 +14,8 @@ router.delete('/users/:id', (req, res) => gatewayController.proxyToUserService(r
 router.post('/users', (req, res) => gatewayController.proxyToUserService(req, res));
 router.get('/users', (req, res) => gatewayController.proxyToUserService(req, res));
 
+// Proxy all deposit-service routes
+router.post('/deposits', (req, res) => gatewayController.proxyToDepositService(req, res));
+router.get('/deposits/:paymentIntentId', (req, res) => gatewayController.proxyToDepositService(req, res));
+
 export default router;

@@ -1,6 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response } from 'express';
 import Joi from 'joi';
 import { ServiceError } from './types.js';
+
+// Define NextFunction type for Express 5 compatibility
+type NextFunction = (err?: any) => void;
 
 export function asyncHandler(
   fn: (req: Request, res: Response, next: NextFunction) => Promise<void>

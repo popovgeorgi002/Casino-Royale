@@ -2,12 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { logger } from './config/logger.js';
-import userRoutes from './routes/user.routes.js';
+import depositRoutes from './routes/deposit.routes.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3004;
 
 // CORS configuration
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -33,13 +33,15 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', service: 'user-service' });
+  res.status(200).json({ status: 'ok', service: 'deposit-service' });
 });
 
 // Routes
-app.use('/api/users', userRoutes);
+app.use('/api/deposits', depositRoutes);
 
 // Start server
 app.listen(PORT, () => {
-  logger.info(`User service running on port ${PORT}`);
+  logger.info(`Deposit service running on port ${PORT}`);
+  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`Health check: http://localhost:${PORT}/health`);
 });

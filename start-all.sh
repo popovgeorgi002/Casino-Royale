@@ -11,8 +11,9 @@ NC='\033[0m' # No Color
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_ROOT"
 
-# PID file to track running processes
+# PID file to track running processes (for front-end and port-forwards)
 PID_FILE="$PROJECT_ROOT/.start-all.pids"
+NAMESPACE="microservices"
 
 # Function to check for npm/node
 check_npm() {
@@ -48,6 +49,27 @@ check_npm() {
         fi
     fi
     
+    return 1
+}
+
+# Function to check for kubectl
+check_kubectl() {
+    if command -v kubectl >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
+# Function to check if Kubernetes service is running
+check_k8s_service() {
+    local service_name=$1
+    if kubectl get deployment "$service_name" -n "$NAMESPACE" >/dev/null 2>&1; then
+        local ready=$(kubectl get deployment "$service_name" -n "$NAMESPACE" -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
+        local desired=$(kubectl get deployment "$service_name" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null)
+        if [ "$ready" = "$desired" ] && [ -n "$ready" ] && [ "$ready" != "0" ]; then
+            return 0
+        fi
+    fi
     return 1
 }
 
@@ -100,14 +122,69 @@ wait_for_service() {
     return 1
 }
 
-# Function to start a service
-start_service() {
+# Function to start port-forwarding
+start_port_forward() {
+    local service_name=$1
+    local local_port=$2
+    local service_port=$3
+    local log_file="$PROJECT_ROOT/logs/port-forward-${service_name}.log"
+
+    mkdir -p "$PROJECT_ROOT/logs"
+
+    if check_port $local_port; then
+        print_warning "Port $local_port is already in use for $service_name port-forward"
+        # Verify it's actually working
+        if curl -s --max-time 2 "http://localhost:$local_port/health" > /dev/null 2>&1; then
+            print_success "Port-forward for $service_name is already active and working"
+            return 0
+        else
+            print_warning "Port $local_port is in use but not responding, killing existing process..."
+            lsof -ti :$local_port | xargs kill -9 2>/dev/null || true
+            sleep 1
+        fi
+    fi
+
+    print_info "Starting port-forward for $service_name (localhost:$local_port -> $service_name:$service_port)..."
+    kubectl port-forward -n "$NAMESPACE" "svc/$service_name" "$local_port:$service_port" > "$log_file" 2>&1 &
+    local pid=$!
+    
+    # Wait for port-forward to be established
+    local max_wait=10
+    local wait_count=0
+    while [ $wait_count -lt $max_wait ]; do
+        if kill -0 "$pid" 2>/dev/null && check_port $local_port; then
+            # Try to connect to verify it's working
+            if curl -s --max-time 2 "http://localhost:$local_port/health" > /dev/null 2>&1; then
+                echo "$pid|port-forward-$service_name|$local_port" >> "$PID_FILE"
+                print_success "Port-forward started for $service_name (PID: $pid)"
+                return 0
+            fi
+        fi
+        sleep 1
+        wait_count=$((wait_count + 1))
+    done
+
+    # Check if process is still running
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "$pid|port-forward-$service_name|$local_port" >> "$PID_FILE"
+        print_warning "Port-forward started for $service_name but may not be fully ready yet (PID: $pid)"
+        return 0
+    else
+        print_error "Failed to start port-forward for $service_name"
+        if [ -f "$log_file" ]; then
+            print_info "Check logs: $log_file"
+        fi
+        return 1
+    fi
+}
+
+# Function to start a local service (front-end only)
+start_local_service() {
     local service_dir=$1
     local service_name=$2
     local port=$3
     local log_file="$PROJECT_ROOT/logs/${service_name}.log"
 
-    # Create logs directory if it doesn't exist
     mkdir -p "$PROJECT_ROOT/logs"
 
     if [ ! -d "$service_dir" ]; then
@@ -115,7 +192,6 @@ start_service() {
         return 1
     fi
 
-    # Check if port is already in use
     if check_port $port; then
         print_warning "$service_name (port $port) is already running"
         return 0
@@ -123,7 +199,6 @@ start_service() {
 
     print_info "Starting $service_name on port $port..."
 
-    # Check if node_modules exists
     if [ ! -d "$service_dir/node_modules" ]; then
         print_warning "$service_name: node_modules not found. Installing dependencies..."
         cd "$service_dir"
@@ -135,15 +210,12 @@ start_service() {
         cd "$PROJECT_ROOT"
     fi
 
-    # Start the service
     cd "$service_dir"
     nohup npm run dev > "$log_file" 2>&1 &
     local pid=$!
     cd "$PROJECT_ROOT"
 
-    # Save PID
     echo "$pid|$service_name|$port" >> "$PID_FILE"
-
     print_success "$service_name started (PID: $pid, Port: $port)"
     print_info "Logs: $log_file"
 }
@@ -151,11 +223,11 @@ start_service() {
 # Function to stop all services
 stop_all() {
     if [ ! -f "$PID_FILE" ]; then
-        print_warning "No services are running (PID file not found)"
+        print_warning "No local services are running (PID file not found)"
         return 0
     fi
 
-    print_info "Stopping all services..."
+    print_info "Stopping all local services and port-forwards..."
     while IFS='|' read -r pid service_name port; do
         if kill -0 "$pid" 2>/dev/null; then
             print_info "Stopping $service_name (PID: $pid)..."
@@ -168,7 +240,7 @@ stop_all() {
     done < "$PID_FILE"
 
     rm -f "$PID_FILE"
-    print_success "All services stopped"
+    print_success "All local services stopped"
 }
 
 # Function to show status
@@ -176,12 +248,37 @@ show_status() {
     print_info "Service Status:"
     echo ""
     
-    if [ ! -f "$PID_FILE" ]; then
-        print_warning "No services are running"
+    # Check Kubernetes services
+    if check_kubectl; then
+        print_info "Kubernetes Services (namespace: $NAMESPACE):"
+        echo ""
+        printf "%-20s %-15s %s\n" "SERVICE" "STATUS" "REPLICAS"
+        echo "------------------------------------------------------------"
+        
+        for service in user-service auth-service api-gateway deposit-service; do
+            if check_k8s_service "$service"; then
+                local ready=$(kubectl get deployment "$service" -n "$NAMESPACE" -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
+                local desired=$(kubectl get deployment "$service" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null)
+                printf "%-20s %-15s %s\n" "$service" "${GREEN}RUNNING${NC}" "$ready/$desired"
+            else
+                printf "%-20s %-15s %s\n" "$service" "${RED}NOT RUNNING${NC}" "-"
+            fi
+        done
+        echo ""
+    else
+        print_warning "kubectl not found - cannot check Kubernetes services"
+        echo ""
+    fi
+    
+    # Check local services
+    print_info "Local Services:"
+    echo ""
+    if [ ! -f "$PID_FILE" ] || [ ! -s "$PID_FILE" ]; then
+        print_warning "No local services are running"
         return 0
     fi
 
-    printf "%-20s %-10s %-10s %s\n" "SERVICE" "PID" "PORT" "STATUS"
+    printf "%-25s %-10s %-10s %s\n" "SERVICE" "PID" "PORT" "STATUS"
     echo "------------------------------------------------------------"
     
     while IFS='|' read -r pid service_name port; do
@@ -190,7 +287,7 @@ show_status() {
         else
             status="${RED}STOPPED${NC}"
         fi
-        printf "%-20s %-10s %-10s %s\n" "$service_name" "$pid" "$port" "$status"
+        printf "%-25s %-10s %-10s %s\n" "$service_name" "$pid" "$port" "$status"
     done < "$PID_FILE"
 }
 
@@ -206,6 +303,27 @@ show_logs() {
 
     print_info "Showing logs for $service_name (Ctrl+C to exit):"
     tail -f "$log_file"
+}
+
+# Function to check Kubernetes cluster
+check_k8s_cluster() {
+    if ! check_kubectl; then
+        print_warning "kubectl not found - Kubernetes services cannot be checked"
+        return 1
+    fi
+
+    if ! kubectl cluster-info >/dev/null 2>&1; then
+        print_warning "Kubernetes cluster is not accessible"
+        return 1
+    fi
+
+    if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+        print_warning "Namespace '$NAMESPACE' does not exist"
+        print_info "Creating namespace..."
+        kubectl create namespace "$NAMESPACE"
+    fi
+
+    return 0
 }
 
 # Main execution
@@ -246,40 +364,75 @@ main() {
     print_success "Found npm v$npm_version and node $node_version"
     echo ""
 
+    # Check Kubernetes cluster
+    check_k8s_cluster
+
     # Clear PID file on start
     > "$PID_FILE"
 
     print_info "=========================================="
-    print_info "  Starting All Microservices"
+    print_info "  Starting Microservices Platform"
     print_info "=========================================="
     echo ""
 
-    # Check if services are already running
-    if [ -f "$PID_FILE" ] && [ -s "$PID_FILE" ]; then
-        print_warning "Some services might already be running"
-        read -p "Do you want to stop them and restart? (y/N): " -n 1 -r
+    # Check Kubernetes backend services
+    print_info "Checking Kubernetes backend services..."
+    echo ""
+    
+    local k8s_services_ready=true
+    for service in user-service auth-service api-gateway deposit-service; do
+        if check_k8s_service "$service"; then
+            print_success "$service is running in Kubernetes"
+        else
+            print_warning "$service is not running in Kubernetes"
+            k8s_services_ready=false
+        fi
+    done
+    
+    echo ""
+    
+    if [ "$k8s_services_ready" = false ]; then
+        print_warning "Some Kubernetes services are not running!"
+        print_info "To deploy backend services to Kubernetes, run:"
+        echo ""
+        echo "  # Build and load images:"
+        echo "  docker build -t user-service:latest ./user-service"
+        echo "  docker build -t auth-service:latest ./auth-service"
+        echo "  docker build -t api-gateway:latest ./api-gateway"
+        echo "  docker build -t deposit-service:latest ./deposit-service"
+        echo ""
+        echo "  kind load docker-image user-service:latest --name microservices"
+        echo "  kind load docker-image auth-service:latest --name microservices"
+        echo "  kind load docker-image api-gateway:latest --name microservices"
+        echo "  kind load docker-image deposit-service:latest --name microservices"
+        echo ""
+        echo "  # Apply Kubernetes resources:"
+        echo "  kubectl apply -f user-service/k8s/"
+        echo "  kubectl apply -f auth-service/k8s/"
+        echo "  kubectl apply -f api-gateway/k8s/"
+        echo "  kubectl apply -f deposit-service/k8s/"
+        echo ""
+        read -p "Continue anyway? (y/N): " -n 1 -r
         echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            stop_all
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
         fi
     fi
 
-    # Start services in order
-    print_info "Starting backend services..."
+    # Start port-forwards for Kubernetes services
+    print_info "Setting up port-forwards for Kubernetes services..."
+    echo ""
     
-    # 1. User Service (port 3000)
-    start_service "$PROJECT_ROOT/user-service" "user-service" 3000
+    start_port_forward "user-service" 3000 3000
+    sleep 1
+    start_port_forward "auth-service" 3001 3001
+    sleep 1
+    start_port_forward "api-gateway" 3002 3002
+    sleep 1
+    start_port_forward "deposit-service" 3004 3004
     sleep 2
 
-    # 2. Auth Service (port 3001)
-    start_service "$PROJECT_ROOT/auth-service" "auth-service" 3001
-    sleep 2
-
-    # 3. API Gateway (port 3002)
-    start_service "$PROJECT_ROOT/api-gateway" "api-gateway" 3002
-    sleep 2
-
-    # 4. Front-end (port 3003 to avoid conflict with user-service on 3000)
+    # Start front-end locally
     print_info "Starting front-end..."
     if [ ! -d "$PROJECT_ROOT/front-end" ]; then
         print_error "Front-end directory does not exist!"
@@ -297,11 +450,7 @@ main() {
         if [ ! -d "$PROJECT_ROOT/front-end/node_modules" ]; then
             print_warning "Front-end: node_modules not found. Installing dependencies..."
             cd "$PROJECT_ROOT/front-end"
-            if ! npm install; then
-                print_error "Failed to install dependencies for front-end"
-                cd "$PROJECT_ROOT"
-                return 1
-            fi
+            npm install
             cd "$PROJECT_ROOT"
         fi
 
@@ -321,26 +470,33 @@ main() {
     print_info "=========================================="
     echo ""
     
-    # Wait a bit for services to start
-    sleep 3
+    # Wait a bit for port-forwards to be fully established
+    print_info "Waiting for port-forwards to be established..."
+    sleep 5
 
-    # Check service health
+    # Check service health via port-forwards
     print_info "Checking service health..."
-    wait_for_service "http://localhost:3000/health" "user-service" || true
-    wait_for_service "http://localhost:3001/health" "auth-service" || true
-    wait_for_service "http://localhost:3002/health" "api-gateway" || true
+    wait_for_service "http://localhost:3000/health" "user-service" || print_warning "user-service health check failed (service may still be starting)"
+    wait_for_service "http://localhost:3001/health" "auth-service" || print_warning "auth-service health check failed (service may still be starting)"
+    wait_for_service "http://localhost:3002/health" "api-gateway" || print_warning "api-gateway health check failed (service may still be starting)"
+    wait_for_service "http://localhost:3004/health" "deposit-service" || print_warning "deposit-service health check failed (service may still be starting)"
 
     echo ""
     print_info "=========================================="
     print_info "  Service URLs:"
     print_info "=========================================="
+    
     # Get front-end port from PID file
     local frontend_port=$(grep "front-end" "$PID_FILE" 2>/dev/null | cut -d'|' -f3 || echo "3003")
     
-    echo "  User Service:    http://localhost:3000"
-    echo "  Auth Service:    http://localhost:3001"
-    echo "  API Gateway:     http://localhost:3002"
+    echo "  User Service:    http://localhost:3000 (via port-forward)"
+    echo "  Auth Service:    http://localhost:3001 (via port-forward)"
+    echo "  API Gateway:     http://localhost:3002 (via port-forward)"
+    echo "  Deposit Service: http://localhost:3004 (via port-forward)"
     echo "  Front-end:       http://localhost:$frontend_port"
+    echo ""
+    print_info "Backend services are running in Kubernetes"
+    print_info "Port-forwards are active to access them locally"
     echo ""
     print_info "To view logs: ./start-all.sh logs <service-name>"
     print_info "To stop all:  ./start-all.sh stop"
@@ -363,7 +519,7 @@ case "${1:-start}" in
         if [ -z "$2" ]; then
             print_error "Please specify a service name"
             echo "Usage: $0 logs <service-name>"
-            echo "Available services: user-service, auth-service, api-gateway, front-end"
+            echo "Available services: front-end, port-forward-user-service, port-forward-auth-service, port-forward-api-gateway"
             exit 1
         fi
         show_logs "$2"
@@ -378,8 +534,8 @@ case "${1:-start}" in
         echo ""
         echo "Commands:"
         echo "  start   - Start all services (default)"
-        echo "  stop    - Stop all running services"
-        echo "  status  - Show status of all services"
+        echo "  stop    - Stop all local services and port-forwards"
+        echo "  status  - Show status of all services (K8s + local)"
         echo "  logs    - Show logs for a service (requires service name)"
         echo "  restart - Stop and restart all services"
         exit 1

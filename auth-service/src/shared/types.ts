@@ -1,15 +1,17 @@
-export interface JWTPayload {
+// Type definitions
+export type JWTPayload = {
   userId: string;
   email: string;
   iat?: number;
   exp?: number;
-}
+};
 
-export interface AuthTokens {
+export type AuthTokens = {
   accessToken: string;
   refreshToken: string;
-}
+};
 
+// Class that can be instantiated at runtime
 export class ServiceError extends Error {
   constructor(
     message: string,

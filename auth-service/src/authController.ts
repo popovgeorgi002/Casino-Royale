@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { asyncHandler } from "./shared/middleware.js";
 import { AuthService } from "./authService.js";
 import { createSuccessResponse } from "./shared/utils.js";

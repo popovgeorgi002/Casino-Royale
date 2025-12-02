@@ -102,4 +102,39 @@ export class GatewayController {
       }
     }
   }
+
+  /**
+   * Proxy requests to deposit-service
+   */
+  async proxyToDepositService(req: Request, res: Response): Promise<void> {
+    try {
+      const path = req.path.replace('/api/deposits', '/api/deposits');
+      const url = `${SERVICE_URLS.DEPOSIT_SERVICE}${path}`;
+
+      const response = await axios({
+        method: req.method as any,
+        url,
+        data: req.body,
+        params: req.query,
+        headers: {
+          ...req.headers,
+          host: undefined, // Remove host header
+        },
+        timeout: 30000,
+      });
+
+      res.status(response.status).json(response.data);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status || 500;
+        const data = error.response?.data || { error: error.message };
+        res.status(status).json(data);
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Internal gateway error',
+        });
+      }
+    }
+  }
 }

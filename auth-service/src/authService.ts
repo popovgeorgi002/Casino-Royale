@@ -1,9 +1,11 @@
-import { AuthTokens, JWTPayload, ServiceError } from "./shared/types.js";
+import type { AuthTokens, JWTPayload } from "./shared/types.js";
+import { ServiceError } from "./shared/types.js";
 import prisma from "./database.js";
 import { createServiceError } from "./shared/utils.js";
 import bcrypt from "bcryptjs";
 import type { StringValue } from "ms";
-import jwt, { SignOptions } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+import type { SignOptions } from "jsonwebtoken";
 import { GatewayService } from "./services/gateway.service.js";
 
 export class AuthService {
