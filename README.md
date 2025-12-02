@@ -4,11 +4,7 @@ A modern microservices-based platform built with Node.js, TypeScript, and Kubern
 
 ## Video Demo
 
-Watch the platform in action:
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/QorTxd_Hlfk" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-[Watch on YouTube](https://youtu.be/QorTxd_Hlfk)
+[Screencast from 2025-12-02 14-51-03.webm](https://github.com/user-attachments/assets/82051bee-a936-4828-976b-c6f4e5ed5c65)
 
 ## Architecture Overview
 
