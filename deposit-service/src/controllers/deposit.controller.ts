@@ -10,15 +10,10 @@ export class DepositController {
     this.depositService = new DepositService();
   }
 
-  /**
-   * Create and process a deposit
-   * POST /api/deposits
-   */
   async createDeposit(req: Request, res: Response): Promise<void> {
     try {
       const { userId, amount, currency } = req.body as CreateDepositRequest;
 
-      // Validate input
       if (!userId) {
         res.status(400).json({
           success: false,
@@ -35,7 +30,6 @@ export class DepositController {
         return;
       }
 
-      // Amount should be in cents (minimum $0.50 = 50 cents)
       if (amount < 50) {
         res.status(400).json({
           success: false,
@@ -66,10 +60,6 @@ export class DepositController {
     }
   }
 
-  /**
-   * Get deposit status
-   * GET /api/deposits/:paymentIntentId
-   */
   async getDepositStatus(req: Request, res: Response): Promise<void> {
     try {
       const { paymentIntentId } = req.params;

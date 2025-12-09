@@ -1,4 +1,3 @@
-// Type definitions
 export type JWTPayload = {
   userId: string;
   email: string;
@@ -11,7 +10,6 @@ export type AuthTokens = {
   refreshToken: string;
 };
 
-// Class that can be instantiated at runtime
 export class ServiceError extends Error {
   constructor(
     message: string,

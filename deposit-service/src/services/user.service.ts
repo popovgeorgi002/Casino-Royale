@@ -7,9 +7,6 @@ export class UserService {
     this.userServiceUrl = process.env.USER_SERVICE_URL || 'http://user-service:3000';
   }
 
-  /**
-   * Get user by ID from user-service
-   */
   async getUserById(userId: string) {
     try {
       const response = await axios.get(
@@ -30,9 +27,6 @@ export class UserService {
     }
   }
 
-  /**
-   * Update user balance in user-service
-   */
   async updateUserBalance(userId: string, newBalance: number) {
     try {
       const response = await axios.put(

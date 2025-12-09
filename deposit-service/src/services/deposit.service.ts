@@ -12,14 +12,10 @@ export class DepositService {
     this.userService = new UserService();
   }
 
-  /**
-   * Process a deposit: Create payment intent, confirm it, and update user balance
-   */
   async processDeposit(request: CreateDepositRequest): Promise<DepositResponse> {
     const { userId, amount, currency = 'usd' } = request;
 
     try {
-      // Step 1: Verify user exists
       logger.info(`Processing deposit for user ${userId}, amount: ${amount} ${currency}`);
       const userResponse = await this.userService.getUserById(userId);
       
@@ -29,7 +25,6 @@ export class DepositService {
 
       const currentBalance = userResponse.data.balance || 0;
 
-      // Step 2: Create and confirm PaymentIntent with Stripe (auto-confirmed in test mode)
       const paymentIntent = await this.stripeService.createPaymentIntent(
         amount,
         currency,
@@ -39,15 +34,11 @@ export class DepositService {
         }
       );
 
-      // In test mode, we proceed with the deposit regardless of payment intent status
-      // since we're using virtual money and the payment intent was created successfully
       logger.info(`PaymentIntent created with status: ${paymentIntent.status}, proceeding with deposit in test mode`);
 
-      // Step 4: Calculate new balance
-      const amountInDollars = amount / 100; // Convert cents to dollars
+      const amountInDollars = amount / 100;
       const newBalance = currentBalance + amountInDollars;
 
-      // Step 5: Update user balance in user-service
       await this.userService.updateUserBalance(userId, newBalance);
 
       logger.info(`Deposit successful: User ${userId}, Amount: $${amountInDollars}, New Balance: $${newBalance}`);
@@ -73,9 +64,6 @@ export class DepositService {
     }
   }
 
-  /**
-   * Get deposit status by payment intent ID
-   */
   async getDepositStatus(paymentIntentId: string): Promise<DepositResponse> {
     try {
       const paymentIntent = await this.stripeService.getPaymentIntent(paymentIntentId);

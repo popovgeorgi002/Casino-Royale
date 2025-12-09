@@ -4,8 +4,8 @@ export interface User {
 }
 
 export interface CreateUserDto {
-  id?: string; // Optional - if provided, use this ID (for external creation)
-  balance?: number; // Optional - defaults to 0
+  id?: string;
+  balance?: number;
 }
 
 export interface UpdateUserDto {

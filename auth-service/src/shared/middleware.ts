@@ -2,7 +2,6 @@ import type { Request, Response } from 'express';
 import Joi from 'joi';
 import { ServiceError } from './types.js';
 
-// Define NextFunction type for Express 5 compatibility
 type NextFunction = (err?: any) => void;
 
 export function asyncHandler(
@@ -40,7 +39,7 @@ export function authenticateToken(
   next: NextFunction
 ): void {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
     res.status(401).json({
@@ -50,8 +49,6 @@ export function authenticateToken(
     return;
   }
 
-  // Token validation will be handled by the service layer
-  // This middleware just extracts the token
   (req as any).token = token;
   next();
 }

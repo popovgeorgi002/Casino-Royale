@@ -1,7 +1,7 @@
 export interface CreateDepositRequest {
   userId: string;
-  amount: number; // Amount in cents (e.g., 1000 = $10.00)
-  currency?: string; // Default: 'usd'
+  amount: number;
+  currency?: string;
 }
 
 export interface DepositResponse {

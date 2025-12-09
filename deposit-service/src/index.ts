@@ -9,11 +9,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3004;
 
-// CORS configuration
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const corsOptions = {
   origin: isDevelopment
-    ? true // Allow all origins in development
+    ? true
     : [
         'http://localhost:3000',
         'http://localhost:3002',
@@ -26,20 +25,16 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', service: 'deposit-service' });
 });
 
-// Routes
 app.use('/api/deposits', depositRoutes);
 
-// Start server
 app.listen(PORT, () => {
   logger.info(`Deposit service running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);

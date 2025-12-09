@@ -6,13 +6,10 @@ export class UserController {
 
   async createUser(req: Request, res: Response): Promise<void> {
     try {
-      // Extract data from req.body
       const userData = req.body;
 
-      // Call userService.createUser
       const user = await this.userService.createUser(userData);
 
-      // Return 201 with created user
       res.status(201).json({
         success: true,
         data: user,
@@ -28,7 +25,6 @@ export class UserController {
 
   async getUserById(req: Request, res: Response): Promise<void> {
     try {
-      // Get id from req.params
       const { id } = req.params;
 
       if (!id) {
@@ -39,10 +35,8 @@ export class UserController {
         return;
       }
 
-      // Call userService.getUserById
       const user = await this.userService.getUserById(id);
 
-      // Return 200 with user
       res.status(200).json({
         success: true,
         data: user,
@@ -60,7 +54,6 @@ export class UserController {
 
   async updateUser(req: Request, res: Response): Promise<void> {
     try {
-      // Get id from req.params
       const { id } = req.params;
       
       if (!id) {
@@ -71,13 +64,10 @@ export class UserController {
         return;
       }
 
-      // Get data from req.body
       const updateData = req.body;
 
-      // Call userService.updateUser
       const user = await this.userService.updateUser(id, updateData);
 
-      // Return 200 with updated user
       res.status(200).json({
         success: true,
         data: user,
@@ -95,7 +85,6 @@ export class UserController {
 
   async deleteUser(req: Request, res: Response): Promise<void> {
     try {
-      // Get id from req.params
       const { id } = req.params;
 
       if (!id) {
@@ -106,10 +95,8 @@ export class UserController {
         return;
       }
 
-      // Call userService.deleteUser
       await this.userService.deleteUser(id);
 
-      // Return 204
       res.status(204).send();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete user';
